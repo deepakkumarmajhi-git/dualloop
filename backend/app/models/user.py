@@ -11,3 +11,4 @@ class User(Base):
     avatar_url = Column(String)
     email = Column(String, nullable=True)
     github_access_token = Column(String, nullable=True)
+    target_role = Column(String, default="Fullstack Developer")

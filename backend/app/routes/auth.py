@@ -1,9 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import RedirectResponse
 from app.services.github import get_access_token, get_github_user
 from app.config import GITHUB_CLIENT_ID, FRONTEND_URL
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from app.database import get_db
 from app.models.user import User
 from app.utils.jwt import create_access_token
 
@@ -23,14 +23,12 @@ def github_login():
 
 
 @router.get("/github/callback")
-async def github_callback(code: str):
+async def github_callback(code: str, db: Session = Depends(get_db)):
     token_data = await get_access_token(code)
 
     access_token = token_data.get("access_token")
 
     user_data = await get_github_user(access_token)
-
-    db: Session = SessionLocal()
 
     existing_user = db.query(User).filter(
         User.github_id == str(user_data["id"])

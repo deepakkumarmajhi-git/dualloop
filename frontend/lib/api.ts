@@ -16,3 +16,34 @@ export async function fetchLanguageAnalytics(token: string) {
 
   return response.json();
 }
+
+
+export async function fetchDeveloperDNA(token: string) {
+  const response = await fetch(
+    `${BASE_URL}/copilot/dna?token=${token}`
+  );
+  return response.json();
+}
+
+
+export async function updateTargetRole(token: string, targetRole: string) {
+  const response = await fetch(
+    `${BASE_URL}/copilot/goal?token=${token}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ target_role: targetRole })
+    }
+  );
+  return response.json();
+}
+
+
+export async function fetchAIMentorship(token: string) {
+  const response = await fetch(
+    `${BASE_URL}/copilot/mentorship?token=${token}`
+  );
+  return response.json();
+}

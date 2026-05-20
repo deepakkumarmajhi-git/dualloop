@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from app.database import get_db
 from app.models.commit import Commit
 from app.models.repository import Repository
 from app.models.user import User
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/repositories")
 
 
 @router.get("/sync")
-async def sync_repositories(token: str):
+async def sync_repositories(token: str, db: Session = Depends(get_db)):
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(
@@ -20,7 +20,6 @@ async def sync_repositories(token: str):
         )
 
     user_id = payload.get("user_id")
-    db: Session = SessionLocal()
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -100,7 +99,8 @@ async def sync_repositories(token: str):
 async def sync_commits(
     token: str,
     owner: str,
-    repo: str
+    repo: str,
+    db: Session = Depends(get_db)
 ):
     payload = decode_access_token(token)
     if not payload:
@@ -110,7 +110,6 @@ async def sync_commits(
         )
 
     user_id = payload.get("user_id")
-    db: Session = SessionLocal()
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.github_access_token:
@@ -135,6 +134,16 @@ async def sync_commits(
         Repository.full_name == f"{owner}/{repo}"
     ).first()
 
+    # O(1) Optimization: Bulk fetch all SHAs in a single query
+    shas_to_check = [c["sha"] for c in commits if isinstance(c, dict) and "sha" in c]
+    existing_shas = set()
+    if shas_to_check:
+        existing_shas = {
+            c.commit_sha for c in db.query(Commit.commit_sha).filter(
+                Commit.commit_sha.in_(shas_to_check)
+            ).all()
+        }
+
     synced_commits = 0
     for item in commits:
         if not isinstance(item, dict) or "sha" not in item:
@@ -142,11 +151,7 @@ async def sync_commits(
 
         sha = item["sha"]
 
-        existing_commit = db.query(Commit).filter(
-            Commit.commit_sha == sha
-        ).first()
-
-        if not existing_commit:
+        if sha not in existing_shas:
             commit = Commit(
                 commit_sha=sha,
                 message=item["commit"]["message"],
@@ -166,10 +171,17 @@ async def sync_commits(
 
 
 @router.get("/all")
-def get_all_repositories():
-    db: Session = SessionLocal()
+def get_all_repositories(token: str, db: Session = Depends(get_db)):
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid JWT access token",
+        )
 
-    repositories = db.query(Repository).all()
+    user_id = payload.get("user_id")
+
+    repositories = db.query(Repository).filter(Repository.owner_id == user_id).all()
 
     result = []
 

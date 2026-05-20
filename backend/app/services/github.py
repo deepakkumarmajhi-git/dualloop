@@ -1,4 +1,4 @@
-import httpx
+import httpx  # type: ignore[import]
 from app.config import GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"

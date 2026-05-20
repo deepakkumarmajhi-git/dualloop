@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from app.database import get_db
 from app.models.repository import Repository
 from app.services.analytics import calculate_language_distribution
 from app.utils.jwt import decode_access_token
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/analytics")
 
 
 @router.get("/languages")
-def language_analytics(token: str):
+def language_analytics(token: str, db: Session = Depends(get_db)):
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(
@@ -18,7 +18,6 @@ def language_analytics(token: str):
         )
 
     user_id = payload.get("user_id")
-    db: Session = SessionLocal()
 
     repositories = db.query(Repository).filter(Repository.owner_id == user_id).all()
 
