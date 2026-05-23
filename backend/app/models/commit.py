@@ -11,3 +11,5 @@ class Commit(Base):
     commit_date = Column(String)
     repository_id = Column(Integer, ForeignKey("repositories.id"))
     modified_extensions = Column(String, nullable=True)
+    additions = Column(Integer, default=0)
+    deletions = Column(Integer, default=0)

@@ -88,7 +88,7 @@ async def get_commit_details(token: str, owner: str, repo: str, sha: str):
             },
         )
         if response.status_code != 200:
-            return []
+            return {"extensions": [], "additions": 0, "deletions": 0}
             
         data = response.json()
         files = data.get("files", [])
@@ -99,7 +99,15 @@ async def get_commit_details(token: str, owner: str, repo: str, sha: str):
                 ext = filename.split(".")[-1].lower()
                 if ext:
                     extensions.append(ext)
-        return list(set(extensions))
+        
+        stats = data.get("stats", {})
+        additions = stats.get("additions", 0)
+        deletions = stats.get("deletions", 0)
+        return {
+            "extensions": list(set(extensions)),
+            "additions": additions,
+            "deletions": deletions
+        }
     
 async def get_repository_languages(
     token: str,
@@ -117,4 +125,34 @@ async def get_repository_languages(
             },
         )
 
+        return response.json()
+
+
+async def get_user_organizations(token: str):
+    url = "https://api.github.com/user/orgs"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+            },
+        )
+        if response.status_code != 200:
+            return []
+        return response.json()
+
+
+async def get_repository_pulls(token: str, owner: str, repo: str):
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls?state=all&per_page=30"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+            },
+        )
+        if response.status_code != 200:
+            return []
         return response.json()

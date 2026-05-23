@@ -18,3 +18,7 @@ class User(Base):
     xp_devops = Column(Integer, default=0)
     xp_velocity = Column(Integer, default=0)
     level = Column(Integer, default=1)
+    bio = Column(String, nullable=True)
+    followers = Column(Integer, default=0)
+    following = Column(Integer, default=0)
+    organizations_json = Column(String, nullable=True)
