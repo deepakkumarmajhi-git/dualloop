@@ -53,27 +53,49 @@ async def get_repository_commits(token: str, owner: str, repo: str, etag: str = 
     if etag:
         headers["If-None-Match"] = etag
 
+    all_commits = []
+    page = 1
+    new_etag = None
+
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{url}?per_page=30",
-            headers=headers,
-        )
-        
-        if response.status_code == 304:
-            return {"not_modified": True, "commits": [], "etag": etag}
+        while True:
+            response = await client.get(
+                f"{url}?per_page=100&page={page}",
+                headers=headers,
+            )
             
-        if response.status_code != 200:
-            # Handle rate limit warnings or error payloads gracefully
-            try:
-                res_data = response.json()
-            except Exception:
-                res_data = {"message": response.text}
-            return {"not_modified": False, "commits": res_data, "etag": None}
+            if response.status_code == 304:
+                return {"not_modified": True, "commits": [], "etag": etag}
+                
+            if response.status_code != 200:
+                try:
+                    res_data = response.json()
+                except Exception:
+                    res_data = {"message": response.text}
+                
+                if page == 1:
+                    return {"not_modified": False, "commits": res_data, "etag": None}
+                else:
+                    break
+                    
+            if page == 1:
+                new_etag = response.headers.get("ETag")
+                
+            page_data = response.json()
+            if not page_data or not isinstance(page_data, list):
+                break
+                
+            all_commits.extend(page_data)
             
-        new_etag = response.headers.get("ETag")
+            link_header = response.headers.get("Link")
+            if not link_header or 'rel="next"' not in link_header:
+                break
+                
+            page += 1
+            
         return {
             "not_modified": False,
-            "commits": response.json(),
+            "commits": all_commits,
             "etag": new_etag
         }
 

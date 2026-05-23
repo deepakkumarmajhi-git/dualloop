@@ -184,18 +184,18 @@ async def run_unified_workspace_sync(user_id: int, db: Session):
 
         db.commit()
 
-        # 2. Synchronize commits for recent repositories (up to 5 to protect rate limits)
+        # 2. Synchronize commits for all repositories
         repositories = db.query(Repository).filter(Repository.owner_id == user.id).all()
         
         # Parallel fetch for active repositories
         tasks = []
-        for r in repositories[:5]:
+        for r in repositories:
             owner, repo_name = r.full_name.split("/")
             tasks.append(get_repository_commits(user.github_access_token, owner, repo_name, r.commits_etag))
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        for idx, r in enumerate(repositories[:5]):
+        for idx, r in enumerate(repositories):
             res = results[idx]
             if isinstance(res, Exception):
                 print(f"Background Sync GitHub Commits exception on {r.full_name}:", res)
@@ -361,6 +361,48 @@ def get_all_repositories(
         })
 
     return result
+
+
+@router.get("/{repo_id}/commits")
+def get_repository_commits_timeline(
+    repo_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch all commits for a specific repository to build the timeline UI.
+    """
+    repo = db.query(Repository).filter(
+        Repository.id == repo_id,
+        Repository.owner_id == current_user.id
+    ).first()
+
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    commits = db.query(Commit).filter(
+        Commit.repository_id == repo.id
+    ).order_by(Commit.commit_date.desc()).all()
+
+    result = [
+        {
+            "sha": c.commit_sha,
+            "message": c.message,
+            "author_name": c.author_name,
+            "commit_date": c.commit_date,
+            "additions": c.additions,
+            "deletions": c.deletions,
+            "modified_extensions": c.modified_extensions,
+        }
+        for c in commits
+    ]
+
+    return {
+        "repo_name": repo.name,
+        "repo_full_name": repo.full_name,
+        "total_commits": len(commits),
+        "commits": result
+    }
 
 
 @router.delete("/{repo_id}")

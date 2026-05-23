@@ -15,3 +15,11 @@ export async function fetchUserProfile(token: string) {
 
   return response.json();
 }
+
+export async function fetchRepositoryCommits(token: string, repoId: number) {
+  const response = await fetch(
+    `${BASE_URL}/repositories/${repoId}/commits?token=${token}`
+  );
+
+  return response.json();
+}
