@@ -233,6 +233,12 @@ def get_commit_feed(
         Commit.commit_date >= limit_date
     ).order_by(Commit.commit_date.desc()).all()
 
+    # Graceful fallback: if no commits in the last 30 days, load the most recent 30 commits
+    if not commits:
+        commits = db.query(Commit).join(Repository).filter(
+            Repository.owner_id == current_user.id
+        ).order_by(Commit.commit_date.desc()).limit(30).all()
+
     result = []
     for c in commits:
         repo = db.query(Repository).filter(Repository.id == c.repository_id).first()
