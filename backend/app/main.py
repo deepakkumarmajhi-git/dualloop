@@ -39,6 +39,22 @@ try:
                 with engine.begin() as conn:
                     conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
                     print(f"MIGRATION: Successfully added {col_name} column to users table.")
+    
+    # Hot-migration for repositories (commits_etag)
+    if "repositories" in inspector.get_table_names():
+        repo_cols = [col["name"] for col in inspector.get_columns("repositories")]
+        if "commits_etag" not in repo_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE repositories ADD COLUMN commits_etag VARCHAR"))
+                print("MIGRATION: Successfully added commits_etag column to repositories table.")
+                
+    # Hot-migration for commits (modified_extensions)
+    if "commits" in inspector.get_table_names():
+        commit_cols = [col["name"] for col in inspector.get_columns("commits")]
+        if "modified_extensions" not in commit_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE commits ADD COLUMN modified_extensions VARCHAR"))
+                print("MIGRATION: Successfully added modified_extensions column to commits table.")
 except Exception as e:
     print("Database migration check warning:", e)
 

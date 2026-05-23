@@ -14,3 +14,4 @@ class Repository(Base):
     forks = Column(Integer)
     repo_url = Column(String)
     owner_id = Column(Integer, ForeignKey("users.id"))
+    commits_etag = Column(String, nullable=True)

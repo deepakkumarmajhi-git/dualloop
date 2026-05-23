@@ -57,10 +57,10 @@ def calculate_behavioral_metrics(user_id: int, db: Session) -> dict:
 
         total_weight = ui_count + logic_count + data_count + infra_count
         if total_weight > 0:
-            ui_ux_score = round((ui_count / total_weight) * 90 + 10, 1)
-            logic_algos_score = round((logic_count / total_weight) * 90 + 10, 1)
-            data_integrity_score = round((data_count / total_weight) * 90 + 10, 1)
-            devops_score = round((infra_count / total_weight) * 90 + 10, 1)
+            ui_ux_score = (ui_count / total_weight) * 90 + 10
+            logic_algos_score = (logic_count / total_weight) * 90 + 10
+            data_integrity_score = (data_count / total_weight) * 90 + 10
+            devops_score = (infra_count / total_weight) * 90 + 10
         else:
             # Fallback based on repository naming keywords if no explicit language
             for repo in repositories:
@@ -76,10 +76,66 @@ def calculate_behavioral_metrics(user_id: int, db: Session) -> dict:
             
             # Normalize fallbacks
             s = ui_ux_score + logic_algos_score + data_integrity_score + devops_score
-            ui_ux_score = round((ui_ux_score / s) * 80 + 20, 1)
-            logic_algos_score = round((logic_algos_score / s) * 80 + 20, 1)
-            data_integrity_score = round((data_integrity_score / s) * 80 + 20, 1)
-            devops_score = round((devops_score / s) * 80 + 20, 1)
+            ui_ux_score = (ui_ux_score / s) * 80 + 20
+            logic_algos_score = (logic_algos_score / s) * 80 + 20
+            data_integrity_score = (data_integrity_score / s) * 80 + 20
+            devops_score = (devops_score / s) * 80 + 20
+
+        # Parse exact commit extensions
+        import json
+        ext_ui = ["js", "ts", "tsx", "jsx", "html", "css", "vue", "scss", "sass"]
+        ext_logic = ["py", "go", "rs", "cpp", "cxx", "java", "kt", "cs", "scala"]
+        ext_data = ["sql", "r", "ipynb", "csv", "json"]
+        ext_devops = ["sh", "dockerfile", "yml", "yaml", "toml", "ini"]
+        
+        ui_ext_count = 0
+        logic_ext_count = 0
+        data_ext_count = 0
+        devops_ext_count = 0
+        has_ext_data = False
+        
+        for c in commits:
+            if c.modified_extensions:
+                try:
+                    ext_list = json.loads(c.modified_extensions)
+                    if isinstance(ext_list, list) and ext_list:
+                        has_ext_data = True
+                        for ext in ext_list:
+                            ext_lower = ext.lower().strip()
+                            if ext_lower in ext_ui:
+                                ui_ext_count += 1
+                            elif ext_lower in ext_logic:
+                                logic_ext_count += 1
+                            elif ext_lower in ext_data:
+                                data_ext_count += 1
+                            elif ext_lower in ext_devops:
+                                devops_ext_count += 1
+                except Exception:
+                    pass
+                    
+        if has_ext_data:
+            ext_total = ui_ext_count + logic_ext_count + data_ext_count + devops_ext_count
+            if ext_total > 0:
+                ui_ext_ratio = (ui_ext_count / ext_total) * 90 + 10
+                logic_ext_ratio = (logic_ext_count / ext_total) * 90 + 10
+                data_ext_ratio = (data_ext_count / ext_total) * 90 + 10
+                devops_ext_ratio = (devops_ext_count / ext_total) * 90 + 10
+                
+                # Blended score: 50% repository-level baseline, 50% precise file-level activity
+                ui_ux_score = round(ui_ux_score * 0.5 + ui_ext_ratio * 0.5, 1)
+                logic_algos_score = round(logic_algos_score * 0.5 + logic_ext_ratio * 0.5, 1)
+                data_integrity_score = round(data_integrity_score * 0.5 + data_ext_ratio * 0.5, 1)
+                devops_score = round(devops_score * 0.5 + devops_ext_ratio * 0.5, 1)
+            else:
+                ui_ux_score = round(ui_ux_score, 1)
+                logic_algos_score = round(logic_algos_score, 1)
+                data_integrity_score = round(data_integrity_score, 1)
+                devops_score = round(devops_score, 1)
+        else:
+            ui_ux_score = round(ui_ux_score, 1)
+            logic_algos_score = round(logic_algos_score, 1)
+            data_integrity_score = round(data_integrity_score, 1)
+            devops_score = round(devops_score, 1)
 
     # 2. Compute Velocity & Endurance
     if commits:

@@ -4,9 +4,11 @@ from app.database import get_db
 from app.models.commit import Commit
 from app.models.repository import Repository
 from app.models.user import User
-from app.services.github import get_user_repositories, get_repository_commits
+from app.services.github import get_user_repositories, get_repository_commits, get_commit_details
 from app.services.behavioral_engine import calculate_behavioral_metrics
-from app.utils.jwt import decode_access_token
+from app.utils.security import get_current_user
+import asyncio
+import json
 
 router = APIRouter(prefix="/repositories")
 
@@ -59,13 +61,39 @@ async def run_unified_workspace_sync(user_id: int, db: Session):
 
         # 2. Synchronize commits for recent repositories (up to 5 to protect rate limits)
         repositories = db.query(Repository).filter(Repository.owner_id == user.id).all()
+        
+        # Parallel fetch for active repositories
+        tasks = []
         for r in repositories[:5]:
             owner, repo_name = r.full_name.split("/")
-            commits = await get_repository_commits(user.github_access_token, owner, repo_name)
-            
+            tasks.append(get_repository_commits(user.github_access_token, owner, repo_name, r.commits_etag))
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for idx, r in enumerate(repositories[:5]):
+            res = results[idx]
+            if isinstance(res, Exception):
+                print(f"Background Sync GitHub Commits exception on {r.full_name}:", res)
+                continue
+                
+            if not isinstance(res, dict):
+                continue
+                
+            if res.get("not_modified"):
+                print(f"CACHE: Commits not modified for {r.full_name} (ETag matched).")
+                continue
+                
+            commits = res.get("commits", [])
             if isinstance(commits, dict) and "message" in commits:
                 print(f"Background Sync GitHub Commits API Error on {r.full_name}:", commits.get("message"))
                 continue
+                
+            if not isinstance(commits, list):
+                continue
+
+            # Update ETag in repository
+            r.commits_etag = res.get("etag")
+            db.commit()
 
             shas_to_check = [c["sha"] for c in commits if isinstance(c, dict) and "sha" in c]
             existing_shas = set()
@@ -76,20 +104,52 @@ async def run_unified_workspace_sync(user_id: int, db: Session):
                     ).all()
                 }
 
+            # Find newly discovered commits
+            new_commit_items = []
             for item in commits:
                 if not isinstance(item, dict) or "sha" not in item:
                     continue
-
                 sha = item["sha"]
                 if sha not in existing_shas:
+                    new_commit_items.append(item)
+
+            if new_commit_items:
+                # Parallel fetch commit details for new commits (limit to 10 to avoid rate limits)
+                owner, repo_name = r.full_name.split("/")
+                detail_tasks = []
+                for item in new_commit_items[:10]:
+                    detail_tasks.append(get_commit_details(user.github_access_token, owner, repo_name, item["sha"]))
+                
+                details_results = await asyncio.gather(*detail_tasks, return_exceptions=True)
+                
+                for c_idx, item in enumerate(new_commit_items[:10]):
+                    det_res = details_results[c_idx]
+                    extensions = []
+                    if not isinstance(det_res, Exception) and isinstance(det_res, list):
+                        extensions = det_res
+                        
                     commit = Commit(
-                        commit_sha=sha,
+                        commit_sha=item["sha"],
                         message=item["commit"]["message"],
                         author_name=item["commit"]["author"]["name"],
                         commit_date=item["commit"]["author"]["date"],
-                        repository_id=r.id
+                        repository_id=r.id,
+                        modified_extensions=json.dumps(extensions)
                     )
                     db.add(commit)
+                    
+                # Handle standard insertions for commits beyond the first 10 details limit
+                for item in new_commit_items[10:]:
+                    commit = Commit(
+                        commit_sha=item["sha"],
+                        message=item["commit"]["message"],
+                        author_name=item["commit"]["author"]["name"],
+                        commit_date=item["commit"]["author"]["date"],
+                        repository_id=r.id,
+                        modified_extensions=json.dumps([]) # fallback
+                    )
+                    db.add(commit)
+                    
         db.commit()
 
         # 3. Trigger DNA Telemetry behavioral engine re-calculation
@@ -100,49 +160,47 @@ async def run_unified_workspace_sync(user_id: int, db: Session):
 
 
 @router.get("/sync")
-async def sync_repositories(token: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid JWT access token",
-        )
-
-    user_id = payload.get("user_id")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found in local workspace database",
-        )
-
-    if not user.github_access_token:
+async def sync_repositories(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not current_user.github_access_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User does not have a GitHub OAuth access token linked",
         )
 
     # Queue unified repository and commit sync task in background
-    background_tasks.add_task(run_unified_workspace_sync, user.id, db)
+    background_tasks.add_task(run_unified_workspace_sync, current_user.id, db)
 
     # Return instant syncing response so dashboard UX remains snappy
     return {"status": "syncing", "message": "Unified repository and commit synchronization running in background."}
 
 
 @router.get("/all")
-def get_all_repositories(token: str, db: Session = Depends(get_db)):
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid JWT access token",
-        )
-
-    user_id = payload.get("user_id")
-    repositories = db.query(Repository).filter(Repository.owner_id == user_id).all()
+def get_all_repositories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    repositories = db.query(Repository).filter(Repository.owner_id == current_user.id).all()
 
     result = []
     for repo in repositories:
+        # Fetch the most recent commit for this repository
+        latest_commit = db.query(Commit).filter(
+            Commit.repository_id == repo.id
+        ).order_by(Commit.commit_date.desc()).first()
+        
+        latest_commit_data = None
+        if latest_commit:
+            latest_commit_data = {
+                "sha": latest_commit.commit_sha[:8] if latest_commit.commit_sha else "Unknown",
+                "message": latest_commit.message,
+                "author_name": latest_commit.author_name,
+                "commit_date": latest_commit.commit_date
+            }
+
         result.append({
             "id": repo.id,
             "name": repo.name,
@@ -151,27 +209,28 @@ def get_all_repositories(token: str, db: Session = Depends(get_db)):
             "stars": repo.stars,
             "forks": repo.forks,
             "repo_url": repo.repo_url,
+            "latest_commit": latest_commit_data
         })
 
     return result
 
 
 @router.get("/commits/feed")
-def get_commit_feed(token: str, db: Session = Depends(get_db)):
+def get_commit_feed(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Returns recent commit history timeline log entries for the active authenticated user.
     """
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid JWT access token",
-        )
-
-    user_id = payload.get("user_id")
+    from datetime import datetime, timedelta
+    
+    # Calculate date threshold 30 days ago
+    limit_date = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     commits = db.query(Commit).join(Repository).filter(
-        Repository.owner_id == user_id
+        Repository.owner_id == current_user.id,
+        Commit.commit_date >= limit_date
     ).order_by(Commit.commit_date.desc()).all()
 
     result = []

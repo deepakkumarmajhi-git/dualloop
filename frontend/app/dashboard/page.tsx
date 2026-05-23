@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import {
   fetchUserRepositories,
   fetchLanguageAnalytics,
@@ -9,22 +9,24 @@ import {
   fetchAchievements,
   fetchDailyChallenge,
   submitChallengeSolution,
-  fetchCommitFeed
+  fetchCommitFeed,
+  fetchFederatedGradients
 } from "@/lib/api";
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-
+ 
 function DashboardContent() {
   const searchParams = useSearchParams();
   const [analytics, setAnalytics] = useState<Record<string, number>>({});
   const [repositories, setRepositories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+ 
   // Authenticated Developer profile states
   const [username, setUsername] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-
+  const [federatedGradients, setFederatedGradients] = useState<any>(null);
+ 
   // Tab Control state: "dna" | "repos" | "challenge" | "activity"
   const [activeTab, setActiveTab] = useState<"dna" | "repos" | "challenge" | "activity">("dna");
 
@@ -133,7 +135,13 @@ function DashboardContent() {
         setDailyChallenge(challengeData);
         setSolutionCode(challengeData.code_template || "");
       }
-
+ 
+      // Fetch Federated Loop 2 Gradients
+      const gradData = await fetchFederatedGradients(token);
+      if (gradData && !gradData.detail) {
+        setFederatedGradients(gradData);
+      }
+ 
       if (forceSync || syncData?.status === "syncing") {
         // Quick 4-second timeout to transition status indicator cleanly
         setTimeout(() => setSyncingStatus("completed"), 4000);
@@ -182,6 +190,12 @@ function DashboardContent() {
         const achievementsData = await fetchAchievements(token);
         if (achievementsData && !achievementsData.detail) {
           setAchievements(achievementsData);
+        }
+        
+        // Refresh federated gradients
+        const gradData = await fetchFederatedGradients(token);
+        if (gradData && !gradData.detail) {
+          setFederatedGradients(gradData);
         }
       }
     } catch (err) {
@@ -711,7 +725,66 @@ function DashboardContent() {
                   </div>
                 </div>
               </div>
-
+ 
+              {/* Federated Loop 2 Telemetry Card */}
+              {federatedGradients && (
+                <div className="bg-[#0b0b0e]/95 border border-white/5 rounded-2xl p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-purple-500/10 to-transparent rounded-full blur-xl"></div>
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500/20 to-cyan-500/20"></div>
+                  
+                  <h3 className="text-xs font-bold tracking-wider font-mono text-gray-200 uppercase mb-4 flex items-center gap-2">
+                    <span className="w-1.5 h-3 bg-purple-500 rounded shadow-[0_0_6px_rgba(147,51,234,0.5)]"></span>
+                    Loop 2: Federated Learning
+                  </h3>
+                  
+                  <div className="space-y-3.5 font-mono text-[10px]">
+                    <div className="flex justify-between items-center bg-[#050507] p-2.5 border border-white/5 rounded-xl">
+                      <span className="text-gray-500">CLIENT ID</span>
+                      <span className="text-purple-400 font-bold tracking-wider">{federatedGradients.federated_client_id}</span>
+                    </div>
+ 
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Avg Alignment Trajectory</span>
+                        <span className="text-cyan-400 font-bold">{federatedGradients.telemetry_gradients.avg_alignment_index}%</span>
+                      </div>
+                      <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-cyan-500" 
+                          style={{ width: `${federatedGradients.telemetry_gradients.avg_alignment_index}%` }}
+                        ></div>
+                      </div>
+                    </div>
+ 
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Pacing Trajectory Delta</span>
+                        <span className={`font-bold ${federatedGradients.telemetry_gradients.trajectory_gradient_delta >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {federatedGradients.telemetry_gradients.trajectory_gradient_delta >= 0 ? "+" : ""}{federatedGradients.telemetry_gradients.trajectory_gradient_delta}%
+                        </span>
+                      </div>
+                    </div>
+ 
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Streak Endurance Ratio</span>
+                        <span className="text-amber-400 font-bold">{Math.round(federatedGradients.telemetry_gradients.streak_endurance_ratio * 100)}%</span>
+                      </div>
+                      <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-amber-500" 
+                          style={{ width: `${federatedGradients.telemetry_gradients.streak_endurance_ratio * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+ 
+                    <p className="text-[9px] text-gray-500 leading-normal mt-2 select-text border-t border-white/5 pt-3">
+                      🔒 {federatedGradients.privacy_guarantee}
+                    </p>
+                  </div>
+                </div>
+              )}
+ 
             </div>
 
             {/* Right Column: AI Mentorship terminal console & Weekly progress history chart */}
@@ -1039,8 +1112,27 @@ function DashboardContent() {
                       <p className="text-gray-400 text-xs mt-3 line-clamp-2 leading-relaxed min-h-[36px]">
                         {repo.description || "Diagnostics operational. Core fullstack repository metadata successfully processed."}
                       </p>
+ 
+                      {repo.latest_commit ? (
+                        <div className="mt-4 p-3 bg-white/2 border border-white/5 rounded-xl text-[10px] font-mono leading-normal">
+                          <div className="flex justify-between text-gray-500 mb-1">
+                            <span>LATEST COMMIT</span>
+                            <span className="text-cyan-400 font-bold">{repo.latest_commit.sha}</span>
+                          </div>
+                          <p className="text-gray-300 line-clamp-1 leading-snug font-semibold select-text">
+                            {repo.latest_commit.message}
+                          </p>
+                          <span className="text-[9px] text-gray-500 block mt-1">
+                            By {repo.latest_commit.author_name}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-4 p-3 bg-white/1 border border-white/[0.03] border-dashed rounded-xl text-[10px] font-mono text-gray-600">
+                          No recent commits synced
+                        </div>
+                      )}
                     </div>
-
+ 
                     <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-[10px] text-gray-500 font-mono">
                       <div className="flex gap-4">
                         <span className="flex items-center gap-1 hover:text-amber-400 transition-colors">

@@ -44,9 +44,41 @@ async def get_user_repositories(token: str):
 
         return response.json()
     
-async def get_repository_commits(token: str, owner: str, repo: str):
+async def get_repository_commits(token: str, owner: str, repo: str, etag: str = None):
     url = f"https://api.github.com/repos/{owner}/{repo}/commits"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
+    if etag:
+        headers["If-None-Match"] = etag
 
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{url}?per_page=30",
+            headers=headers,
+        )
+        
+        if response.status_code == 304:
+            return {"not_modified": True, "commits": [], "etag": etag}
+            
+        if response.status_code != 200:
+            # Handle rate limit warnings or error payloads gracefully
+            try:
+                res_data = response.json()
+            except Exception:
+                res_data = {"message": response.text}
+            return {"not_modified": False, "commits": res_data, "etag": None}
+            
+        new_etag = response.headers.get("ETag")
+        return {
+            "not_modified": False,
+            "commits": response.json(),
+            "etag": new_etag
+        }
+
+async def get_commit_details(token: str, owner: str, repo: str, sha: str):
+    url = f"https://api.github.com/repos/{owner}/{repo}/commits/{sha}"
     async with httpx.AsyncClient() as client:
         response = await client.get(
             url,
@@ -55,8 +87,19 @@ async def get_repository_commits(token: str, owner: str, repo: str):
                 "Accept": "application/json",
             },
         )
-
-        return response.json()
+        if response.status_code != 200:
+            return []
+            
+        data = response.json()
+        files = data.get("files", [])
+        extensions = []
+        for f in files:
+            filename = f.get("filename", "")
+            if "." in filename:
+                ext = filename.split(".")[-1].lower()
+                if ext:
+                    extensions.append(ext)
+        return list(set(extensions))
     
 async def get_repository_languages(
     token: str,

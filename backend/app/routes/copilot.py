@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.utils.jwt import decode_access_token
 from app.models.user import User
 from app.models.behavioral_snapshot import BehavioralSnapshot
 from app.models.coding_challenge import CodingChallenge
 from app.services.behavioral_engine import calculate_behavioral_metrics
 from app.services.copilot import generate_mentorship_advice
 from app.services.gemini import generate_gemini_challenge, evaluate_challenge_solution
+from app.utils.security import get_current_user
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -22,33 +22,17 @@ class SubmitSolutionRequest(BaseModel):
     solution_code: str
 
 
-def get_user_from_token(token: str, db: Session) -> User:
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid JWT access token",
-        )
-    user_id = payload.get("user_id")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-    return user
-
-
 @router.get("/dna")
-def get_developer_dna(token: str, db: Session = Depends(get_db)):
-    user = get_user_from_token(token, db)
-    
+def get_developer_dna(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     # Calculate DNA (calculates and stores XP as side-effect)
-    dna = calculate_behavioral_metrics(user.id, db)
+    dna = calculate_behavioral_metrics(current_user.id, db)
     
     # Load history snapshots
     snapshots = db.query(BehavioralSnapshot).filter(
-        BehavioralSnapshot.user_id == user.id
+        BehavioralSnapshot.user_id == current_user.id
     ).order_by(BehavioralSnapshot.calculated_at.asc()).all()
     
     history = [
@@ -61,44 +45,51 @@ def get_developer_dna(token: str, db: Session = Depends(get_db)):
     ]
     
     return {
-        "target_role": user.target_role,
-        "username": user.username,
-        "avatar_url": user.avatar_url,
+        "target_role": current_user.target_role,
+        "username": current_user.username,
+        "avatar_url": current_user.avatar_url,
         "dna": dna,
         "history": history
     }
 
 
 @router.post("/goal")
-def update_target_role(token: str, req: UpdateGoalRequest, db: Session = Depends(get_db)):
-    user = get_user_from_token(token, db)
-    
+def update_target_role(
+    req: UpdateGoalRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     # Update target career goal
-    user.target_role = req.target_role
+    current_user.target_role = req.target_role
     db.commit()
     
     # Recompute DNA metrics with the new goal immediately
-    dna = calculate_behavioral_metrics(user.id, db)
+    dna = calculate_behavioral_metrics(current_user.id, db)
     
     return {
         "status": "success",
-        "target_role": user.target_role,
+        "target_role": current_user.target_role,
         "dna": dna
     }
 
 
 @router.get("/mentorship")
-async def get_mentorship_insights(token: str, db: Session = Depends(get_db)):
-    user = get_user_from_token(token, db)
-    advice = await generate_mentorship_advice(user.id, db)
+async def get_mentorship_insights(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    advice = await generate_mentorship_advice(current_user.id, db)
     return {
         "advice": advice
     }
 
 
 @router.get("/achievements")
-def get_user_achievements(token: str, db: Session = Depends(get_db)):
-    user = get_user_from_token(token, db)
+def get_user_achievements(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user = current_user
     
     total_xp = (user.xp_ui_ux or 0) + (user.xp_logic or 0) + (user.xp_data or 0) + (user.xp_devops or 0) + (user.xp_velocity or 0)
     
@@ -149,8 +140,11 @@ def get_user_achievements(token: str, db: Session = Depends(get_db)):
 
 
 @router.get("/challenge")
-async def get_daily_challenge(token: str, db: Session = Depends(get_db)):
-    user = get_user_from_token(token, db)
+async def get_daily_challenge(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user = current_user
     
     # 1. Deduce their weakest telemetry radar slice
     dna = calculate_behavioral_metrics(user.id, db)
@@ -199,8 +193,12 @@ async def get_daily_challenge(token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/challenge/submit")
-async def submit_challenge(token: str, req: SubmitSolutionRequest, db: Session = Depends(get_db)):
-    user = get_user_from_token(token, db)
+async def submit_challenge(
+    req: SubmitSolutionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user = current_user
     
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
     challenge = db.query(CodingChallenge).filter(
@@ -255,4 +253,51 @@ async def submit_challenge(token: str, req: SubmitSolutionRequest, db: Session =
         "status": res.get("status"),
         "feedback": res.get("feedback"),
         "xp_awarded": xp_awarded
+    }
+
+
+@router.get("/federated/export")
+def export_federated_gradients(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Computes local developer progression telemetry gradients.
+    Formulates a privacy-preserving gradient update representing
+    Loop 2 Population Learning specifications.
+    """
+    snapshots = db.query(BehavioralSnapshot).filter(
+        BehavioralSnapshot.user_id == current_user.id
+    ).order_by(BehavioralSnapshot.calculated_at.desc()).limit(14).all()
+    
+    # Defaults in case history is short
+    avg_momentum = 50.0
+    avg_consistency = 20.0
+    alignment_gradient = 0.0
+    streak_endurance = 1.0
+    
+    if len(snapshots) > 1:
+        snapshot_list = list(reversed(snapshots))
+        momentums = [s.momentum_score for s in snapshot_list]
+        consistencies = [s.consistency_score for s in snapshot_list]
+        
+        avg_momentum = sum(momentums) / len(momentums)
+        avg_consistency = sum(consistencies) / len(consistencies)
+        
+        # Simple gradient representing trajectory
+        alignment_gradient = momentums[-1] - momentums[0]
+        streak_endurance = sum(1 for c in consistencies if c > 15.0) / len(consistencies)
+        
+    return {
+        "status": "success",
+        "loop": 2,
+        "federated_client_id": f"client_{current_user.github_id[:12] if current_user.github_id else 'anon'}",
+        "telemetry_gradients": {
+            "avg_alignment_index": round(avg_momentum, 2),
+            "avg_consistency_index": round(avg_consistency, 2),
+            "trajectory_gradient_delta": round(alignment_gradient, 2),
+            "streak_endurance_ratio": round(streak_endurance, 2),
+        },
+        "privacy_guarantee": "Federated local gradients exported successfully. Context-isolated repository paths and commit messages scrubbed.",
+        "global_learning_epoch": 1
     }

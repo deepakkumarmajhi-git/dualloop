@@ -10,3 +10,4 @@ class Commit(Base):
     author_name = Column(String)
     commit_date = Column(String)
     repository_id = Column(Integer, ForeignKey("repositories.id"))
+    modified_extensions = Column(String, nullable=True)

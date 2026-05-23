@@ -86,3 +86,11 @@ export async function fetchCommitFeed(token: string) {
   );
   return response.json();
 }
+
+
+export async function fetchFederatedGradients(token: string) {
+  const response = await fetch(
+    `${BASE_URL}/copilot/federated/export?token=${token}`
+  );
+  return response.json();
+}
