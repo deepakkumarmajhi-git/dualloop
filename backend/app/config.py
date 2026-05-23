@@ -1,4 +1,3 @@
-from app.services.gemini import GEMINI_API_KEY
 from dotenv import load_dotenv
 import os
 
