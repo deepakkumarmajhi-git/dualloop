@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models.commit import Commit
 from app.models.repository import Repository
 from app.models.user import User
@@ -20,10 +20,11 @@ import json
 router = APIRouter(prefix="/repositories")
 
 
-async def run_unified_workspace_sync(user_id: int, db: Session):
+async def run_unified_workspace_sync(user_id: int):
     """
     Background worker task to fetch repositories, commits, and calculate DNA telemetry.
     """
+    db = SessionLocal()
     try:
         user = db.query(User).filter(User.id == user_id).first()
         if not user or not user.github_access_token:
@@ -49,7 +50,9 @@ async def run_unified_workspace_sync(user_id: int, db: Session):
                 user.organizations_json = json.dumps(orgs_list)
             db.commit()
         except Exception as e_user:
-            print("Background sync user profile warning:", e_user)
+            import traceback
+            print("Background sync user profile warning:")
+            traceback.print_exc()
 
         # 1. Fetch repositories from GitHub
         repos = await get_user_repositories(user.github_access_token)
@@ -287,7 +290,11 @@ async def run_unified_workspace_sync(user_id: int, db: Session):
 
         print(f"BACKGROUND SYNC: Successfully synced workspace for user {user.username}.")
     except Exception as e:
-        print("Error in background unified sync execution:", e)
+        import traceback
+        print("Error in background unified sync execution:")
+        traceback.print_exc()
+    finally:
+        db.close()
 
 
 @router.get("/sync")
@@ -303,7 +310,7 @@ async def sync_repositories(
         )
 
     # Queue unified repository and commit sync task in background
-    background_tasks.add_task(run_unified_workspace_sync, current_user.id, db)
+    background_tasks.add_task(run_unified_workspace_sync, current_user.id)
 
     # Return instant syncing response so dashboard UX remains snappy
     return {"status": "syncing", "message": "Unified repository and commit synchronization running in background."}
