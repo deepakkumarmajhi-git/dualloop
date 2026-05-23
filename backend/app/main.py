@@ -7,6 +7,7 @@ from app.models.repository import Repository
 from app.models.commit import Commit
 from app.models.specialization_profile import SpecializationProfile
 from app.models.behavioral_snapshot import BehavioralSnapshot
+from app.models.coding_challenge import CodingChallenge
 
 from app.routes.repository import router as repo_router
 from app.routes.analytics import router as analytics_router
@@ -14,7 +15,7 @@ from app.routes.copilot import router as copilot_router
 app = FastAPI(title="DualLoop API")
 Base.metadata.create_all(bind=engine)
 
-# Dynamic hot-migration to ensure target_role column exists in users table
+# Dynamic hot-migration to ensure target_role and XP/level columns exist in users table
 from sqlalchemy import inspect, text
 try:
     inspector = inspect(engine)
@@ -24,6 +25,20 @@ try:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE users ADD COLUMN target_role VARCHAR DEFAULT 'Fullstack Developer'"))
                 print("MIGRATION: Successfully added target_role column to users table.")
+        
+        xp_cols = {
+            "xp_ui_ux": "INTEGER DEFAULT 0",
+            "xp_logic": "INTEGER DEFAULT 0",
+            "xp_data": "INTEGER DEFAULT 0",
+            "xp_devops": "INTEGER DEFAULT 0",
+            "xp_velocity": "INTEGER DEFAULT 0",
+            "level": "INTEGER DEFAULT 1"
+        }
+        for col_name, col_type in xp_cols.items():
+            if col_name not in columns:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+                    print(f"MIGRATION: Successfully added {col_name} column to users table.")
 except Exception as e:
     print("Database migration check warning:", e)
 

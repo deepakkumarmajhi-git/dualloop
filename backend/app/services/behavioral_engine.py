@@ -191,6 +191,23 @@ def calculate_behavioral_metrics(user_id: int, db: Session) -> dict:
         profile.frontend_dominance_ratio = frontend_dominance_ratio
         profile.developer_role_title = rpg_title
 
+    # 7.5 Update User XP and Level in user model
+    commit_count = len(commits) if commits else 0
+    xp_ui_ux = int(ui_ux_score * 12 + commit_count * 2)
+    xp_logic = int(logic_algos_score * 12 + commit_count * 2)
+    xp_data = int(data_integrity_score * 12 + commit_count * 2)
+    xp_devops = int(devops_score * 12 + commit_count * 2)
+    xp_velocity = int(velocity_score * 15 + commit_count * 4)
+    total_xp = xp_ui_ux + xp_logic + xp_data + xp_devops + xp_velocity
+    calculated_level = int((total_xp ** 0.5) / 10) + 1
+
+    user.xp_ui_ux = xp_ui_ux
+    user.xp_logic = xp_logic
+    user.xp_data = xp_data
+    user.xp_devops = xp_devops
+    user.xp_velocity = xp_velocity
+    user.level = calculated_level
+
     # 8. Store snapshot (LOOP 2 progression telemetry)
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
     existing_snapshot = db.query(BehavioralSnapshot).filter(
@@ -225,4 +242,10 @@ def calculate_behavioral_metrics(user_id: int, db: Session) -> dict:
         "developer_role_title": rpg_title,
         "backend_specialization_index": backend_specialization_index,
         "frontend_dominance_ratio": frontend_dominance_ratio,
+        "xp_ui_ux": xp_ui_ux,
+        "xp_logic": xp_logic,
+        "xp_data": xp_data,
+        "xp_devops": xp_devops,
+        "xp_velocity": xp_velocity,
+        "level": calculated_level,
     }

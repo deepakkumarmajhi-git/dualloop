@@ -20,7 +20,6 @@ async def get_access_token(code: str):
 
         return response.json()
 
-
 async def get_github_user(token: str):
     async with httpx.AsyncClient() as client:
         response = await client.get(
@@ -32,7 +31,7 @@ async def get_github_user(token: str):
         )
 
         return response.json()
-    
+
 async def get_user_repositories(token: str):
     async with httpx.AsyncClient() as client:
         response = await client.get(
@@ -45,7 +44,6 @@ async def get_user_repositories(token: str):
 
         return response.json()
     
-
 async def get_repository_commits(token: str, owner: str, repo: str):
     url = f"https://api.github.com/repos/{owner}/{repo}/commits"
 
@@ -60,7 +58,6 @@ async def get_repository_commits(token: str, owner: str, repo: str):
 
         return response.json()
     
-
 async def get_repository_languages(
     token: str,
     owner: str,

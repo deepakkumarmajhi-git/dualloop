@@ -47,3 +47,42 @@ export async function fetchAIMentorship(token: string) {
   );
   return response.json();
 }
+
+
+export async function fetchAchievements(token: string) {
+  const response = await fetch(
+    `${BASE_URL}/copilot/achievements?token=${token}`
+  );
+  return response.json();
+}
+
+
+export async function fetchDailyChallenge(token: string) {
+  const response = await fetch(
+    `${BASE_URL}/copilot/challenge?token=${token}`
+  );
+  return response.json();
+}
+
+
+export async function submitChallengeSolution(token: string, solutionCode: string) {
+  const response = await fetch(
+    `${BASE_URL}/copilot/challenge/submit?token=${token}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ solution_code: solutionCode })
+    }
+  );
+  return response.json();
+}
+
+
+export async function fetchCommitFeed(token: string) {
+  const response = await fetch(
+    `${BASE_URL}/repositories/commits/feed?token=${token}`
+  );
+  return response.json();
+}
