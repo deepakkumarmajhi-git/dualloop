@@ -5,14 +5,22 @@ from app.database import Base, engine
 from app.models.user import User
 from app.models.repository import Repository
 from app.models.commit import Commit
-
+from sqlalchemy import inspect, text
 from app.routes.repository import router as repo_router
 from app.routes.user import router as user_router
+from app.config import settings
+from app.utils.rate_limit import limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+
 app = FastAPI(title="DualLoop API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 Base.metadata.create_all(bind=engine)
 
-# Dynamic hot-migration to ensure target_role and XP/level columns exist in users table
-from sqlalchemy import inspect, text
+# Dynamic hot-migration to ensure target_role exists in users table
+
 try:
     inspector = inspect(engine)
     if "users" in inspector.get_table_names():
@@ -21,21 +29,6 @@ try:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE users ADD COLUMN target_role VARCHAR DEFAULT 'Fullstack Developer'"))
                 print("MIGRATION: Successfully added target_role column to users table.")
-        
-        xp_cols = {
-            "xp_ui_ux": "INTEGER DEFAULT 0",
-            "xp_logic": "INTEGER DEFAULT 0",
-            "xp_data": "INTEGER DEFAULT 0",
-            "xp_devops": "INTEGER DEFAULT 0",
-            "xp_velocity": "INTEGER DEFAULT 0",
-            "level": "INTEGER DEFAULT 1"
-        }
-        for col_name, col_type in xp_cols.items():
-            if col_name not in columns:
-                with engine.begin() as conn:
-                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
-                    print(f"MIGRATION: Successfully added {col_name} column to users table.")
-        
         user_new_cols = {
             "bio": "VARCHAR",
             "followers": "INTEGER DEFAULT 0",
@@ -100,14 +93,13 @@ try:
 except Exception as e:
     print("Database migration check warning:", e)
 
-
-# Add CORS Middleware
+# Strict CORS Origin Binding- Only allow connections from the actual production frontend.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[str(settings.FRONTEND_URL)],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(auth_router)

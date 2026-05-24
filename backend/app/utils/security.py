@@ -1,14 +1,36 @@
-from fastapi import Query, HTTPException, Depends, status
+from fastapi import HTTPException, Depends, status, Query, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.utils.jwt import decode_access_token
+from typing import Optional
 
-def get_current_user(token: str = Query(...), db: Session = Depends(get_db)) -> User:
+security_scheme = HTTPBearer(auto_error=False)
+
+def get_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
+    token_query: Optional[str] = Query(None, alias="token"),
+    db: Session = Depends(get_db)
+) -> User:
     """
-    FastAPI dependency that extracts and validates the JWT token from the query parameter.
-    Injects the corresponding SQLAlchemy User model into standard endpoint signatures.
+    FastAPI dependency that extracts and validates the JWT token.
+    Supports standard Authorization Bearer header, with a secure query parameter fallback
+    for backwards-compatibility with the existing frontend requests.
     """
+    token = None
+    if credentials:
+        token = credentials.credentials
+    elif token_query:
+        token = token_query
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="JWT access token is missing from headers or query parameters",
+        )
+    
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(

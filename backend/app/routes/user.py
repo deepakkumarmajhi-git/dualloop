@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.utils.security import get_current_user
 from app.database import get_db
+from app.schemas import UserMeResponse, RoleUpdateRequest, RoleUpdateResponse
 
 router = APIRouter(prefix="/user")
 
 
 import json
 
-@router.get("/me")
+@router.get("/me", response_model=UserMeResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     orgs_data = []
     if current_user.organizations_json:
@@ -31,16 +32,12 @@ def get_me(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.post("/role")
+@router.post("/role", response_model=RoleUpdateResponse)
 def update_target_role(
-    payload: dict,
+    payload: RoleUpdateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    role = payload.get("target_role")
-    if not role:
-        raise HTTPException(status_code=400, detail="target_role is required")
-        
-    current_user.target_role = role
+    current_user.target_role = payload.target_role
     db.commit()
     return {"status": "success", "target_role": current_user.target_role}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from app.services.github import get_access_token, get_github_user
 from app.config import GITHUB_CLIENT_ID, FRONTEND_URL
@@ -6,13 +6,15 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.utils.jwt import create_access_token
+from app.utils.rate_limit import limiter
 
 
 router = APIRouter(prefix="/auth")
 
 
 @router.get("/github/login")
-def github_login():
+@limiter.limit("30/minute")
+def github_login(request: Request):
     github_auth_url = (
         "https://github.com/login/oauth/authorize"
         f"?client_id={GITHUB_CLIENT_ID}"
@@ -23,7 +25,8 @@ def github_login():
 
 
 @router.get("/github/callback")
-async def github_callback(code: str, db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+async def github_callback(request: Request, code: str, db: Session = Depends(get_db)):
     token_data = await get_access_token(code)
 
     access_token = token_data.get("access_token")

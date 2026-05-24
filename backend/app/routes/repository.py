@@ -14,6 +14,13 @@ from app.services.github import (
     get_repository_pulls
 )
 from app.utils.security import get_current_user
+from app.schemas import (
+    SyncStatusResponse,
+    RepositoryResponse,
+    CommitTimelineResponse,
+    DeleteStatusResponse
+)
+from typing import List
 import asyncio
 import json
 
@@ -297,7 +304,7 @@ async def run_unified_workspace_sync(user_id: int):
         db.close()
 
 
-@router.get("/sync")
+@router.get("/sync", response_model=SyncStatusResponse)
 async def sync_repositories(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
@@ -316,7 +323,7 @@ async def sync_repositories(
     return {"status": "syncing", "message": "Unified repository and commit synchronization running in background."}
 
 
-@router.get("/all")
+@router.get("/all", response_model=List[RepositoryResponse])
 def get_all_repositories(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -370,7 +377,7 @@ def get_all_repositories(
     return result
 
 
-@router.get("/{repo_id}/commits")
+@router.get("/{repo_id}/commits", response_model=CommitTimelineResponse)
 def get_repository_commits_timeline(
     repo_id: int,
     current_user: User = Depends(get_current_user),
@@ -412,7 +419,7 @@ def get_repository_commits_timeline(
     }
 
 
-@router.delete("/{repo_id}")
+@router.delete("/{repo_id}", response_model=DeleteStatusResponse)
 def delete_repository(
     repo_id: int,
     current_user: User = Depends(get_current_user),
