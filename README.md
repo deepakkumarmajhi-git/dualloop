@@ -27,24 +27,27 @@ sequenceDiagram
     GH->>BE: GET /auth/github/callback?code=XYZ
     Note over BE: Rate Limited (30/min via SlowAPI)
     BE->>GH: Exchange authorization code for GitHub Access Token
-    BE->>DB: Persist user & encrypt/store GitHub Access Token
-    BE->>FE: Redirect back with local JWT token (?token=JWT)
+    Note over BE: Encrypts token with AES-256-GCM
+    BE->>DB: Persist user & encrypted GitHub Access Token
+    BE->>FE: Redirect to /dashboard with secure, HttpOnly cookie<br/>(dualloop_session_token=JWT)
     
-    Note over FE: Client extracts JWT, writes to sessionStorage,<br/>and runs history.replaceState() to scrub URL bar
+    Note over FE: Client session runs securely.<br/>XSS cannot access HttpOnly cookie.
     
-    FE->>BE: GET /repositories/sync (Authorization: Bearer JWT)
-    Note over BE: JWT validated (jose/HS256). Extracts user_id
+    FE->>BE: GET /repositories/sync (Session Cookie Attached)
+    Note over BE: Extracts JWT from Cookie, Headers, or Query.<br/>Validates JWT (jose/HS256).
     BE->>FE: Return "syncing" (Instant Async Ack)
     
-    Note over BE: Spawns Background Task to sync telemetry
-    BE->>DB: Lookup GitHub Access Token for user_id
+    Note over BE: Spawns Background Task to run unified sync
+    BE->>DB: Lookup & decrypt GitHub Access Token (AES-256-GCM)
+    BE->>GH: Fetch user profile (Bio, Followers, and Organizations)
     BE->>GH: Query repos (Parallelised via asyncio.gather, max 70)
-    BE->>GH: Fetch repo languages & pull request status
-    BE->>GH: Sync commits (Checks commits_etag to fetch diffs only)
-    BE->>DB: Cascading CRUD: Remove stale/archived repos & commits
-    BE->>DB: Store synced records linked by strict foreign keys (owner_id)
+    BE->>GH: Fetch repo languages & pull request status (open/merged)
+    BE->>DB: Cascading CRUD: Purge deleted/archived repos & commits
+    BE->>GH: Sync commits (Checks commits_etag for HTTP ETag caching)
+    BE->>GH: Fetch commit details (Additions, deletions, extensions capped at 10)
+    BE->>DB: Store records bound by strict foreign keys (owner_id)
     
-    FE->>BE: GET /repositories/all (Bearer JWT)
+    FE->>BE: GET /repositories/all (Session Cookie Attached)
     BE->>DB: Query repositories WHERE owner_id == current_user.id
     BE->>FE: Return isolated repository dashboard records
     FE->>Dev: Render Glassmorphic Telemetry Workspace
@@ -52,10 +55,10 @@ sequenceDiagram
 
 ### Architecture Core Pillars
 
-#### 1. OAuth 2.0 & Session Security
-* **Double-Token Isolation**: DualLoop keeps the third-party token isolated. The frontend never sees or stores the raw GitHub access token. Instead, the backend exchanges the OAuth code, securely stores the GitHub Access Token in the database, and mints a short-lived **local JWT session token** signed with `HS256` and backed by a 7-day expiration duration.
-* **Header and Fallback Extraction**: The FastAPI security module (`get_current_user`) extracts tokens primarily from standard `Authorization: Bearer <token>` request headers, with a secure query string fallback (`?token=...`) for compatibility.
-* **Client-Side Sanitization**: Upon returning from the OAuth flow, the Next.js router immediately grabs the JWT from the URL search parameters, caches it in tab-isolated `sessionStorage` (preventing persistent leakage on shared machines), and immediately runs `window.history.replaceState` to strip the secret token from the browser address bar.
+#### 1. AES-256-GCM & Session Cookie Security
+* **AES-256-GCM Encryption at Rest**: To safeguard credentials, the raw GitHub Access Token is never stored as plain text in the database. Utilizing a hybrid ORM property, the token is automatically encrypted with AES-256-GCM using `AESGCM` (cryptography package) and a securely derived 32-byte `ENCRYPTION_KEY` upon database writes, and transparently decrypted on database queries.
+* **HttpOnly Session Cookies**: Rather than exposing the JWT session token to browser storage and query strings, the backend callback issues a secure `HttpOnly`, `SameSite=Lax` session cookie called `dualloop_session_token` with a 7-day expiration lifespan.
+* **Robust Multi-Channel Authentication**: The security utility `get_current_user` extracts authentication credentials with high versatility, checking the `dualloop_session_token` cookie first, with fallback parsing for standard `Authorization: Bearer <token>` headers and `?token=...` query parameters to facilitate developmental scripting.
 
 #### 2. Strict Multi-Tenant Isolation
 * All backend routes query the DB exclusively with filter scopes tied to the active user's verification footprint:
@@ -65,12 +68,14 @@ sequenceDiagram
 * Spoofing attempts, ID-guessing, or cross-tenant query injections are completely blocked because database access is bound strictly to the decoded JWT identity signature at the ORM layer.
 
 #### 3. Optimized Asynchronous Ingestion & ETag Caching
-* **Background Worker Processing**: Initiating a workspace refresh (`/repositories/sync`) triggers a non-blocking asynchronous FastAPI `BackgroundTask`, allowing the UI to remain incredibly responsive while heavy syncs run in the background.
-* **GitHub Rate Limit Defenses**:
-  * Parallelizes fetches using `asyncio.gather` for up to **70 active repositories** to keep sync times low without overwhelming GitHub APIs.
-  * Deep commit detail analysis (additions, deletions, and extensions) is capped at the first **10 commits** to avoid triggering secondary abuse rate limits.
-  * Employs **HTTP ETag caching** via `commits_etag` on the `repositories` table. If the repository hasn't changed on GitHub, it skips refetching the commit timeline.
-* **Cascading Synchronisation (CRUD Sync)**: When repositories are deleted or archived on GitHub, the backend automatically performs a database sync to purge the stale records and cascades deletion to all associated commits.
+* **Unified Background Synchronisation**: Initiating a workspace refresh (`/repositories/sync`) triggers a non-blocking asynchronous FastAPI `BackgroundTask`. It queries and persists:
+  * User profile details (Bio, Followers, and GitHub Organizations).
+  * Up to **70 active repositories** processed in parallel.
+  * Repository language allocations (calculating precise percentage weights) and pull request states (open vs. merged counts).
+* **ETag Caching & Commit Caps**:
+  * Employs **HTTP ETag caching** via `commits_etag` on the `repositories` table to avoid refetching unmodified commit timelines.
+  * Caps deep commit metadata processing (lines added/deleted, extensions modified) at the first **10 commits** to completely defend against secondary abuse rate limit boundaries.
+* **Cascading Synchronisation (CRUD Sync)**: If a repository is archived or deleted on GitHub, the backend cascading CRUD engine detects its absence, automatically purges the stale database records, and cascades deletion to all associated commits.
 
 #### 4. API Infrastructure Protection
 * **Rate-Limiting (DDoS Protection)**: Integrated `SlowAPI` with key auth-routes scoped to `30 requests per minute` per client IP to safeguard against brute-force account registration.
