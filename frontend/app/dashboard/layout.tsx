@@ -29,7 +29,7 @@ export default function DashboardLayout({
 
   const loadSidebarData = async () => {
     try {
-      // 1. Safe Client-Side parsing of OAuth Callback Token
+      // 1. Safe Client-Side parsing of OAuth Callback Token (Legacy fallback)
       let token = new URLSearchParams(window.location.search).get("token") || "";
 
       if (token) {
@@ -41,21 +41,32 @@ export default function DashboardLayout({
         token = sessionStorage.getItem("dualloop_session_token") || "";
       }
 
-      // If no token exists in query string or session cache, redirect to landing
-      if (!token) {
+      // First, try loading profile with HttpOnly cookies (credentials: include)
+      let profileData = await fetchUserProfile();
+      
+      // If cookie-based loading fails, check legacy sessionStorage token
+      if ((!profileData || profileData.detail) && token) {
+        profileData = await fetchUserProfile(token);
+      }
+
+      // If both fail, redirect to login
+      if (!profileData || profileData.detail) {
         router.push("/");
         return;
       }
 
-      // Fetch user profile info
-      const profileData = await fetchUserProfile(token);
-      if (profileData && !profileData.detail) {
-        setUsername(profileData.username || "");
-        setAvatarUrl(profileData.avatar_url || "");
-      }
+      // Populate sidebar user info
+      setUsername(profileData.username || "");
+      setAvatarUrl(profileData.avatar_url || "");
 
-      // Load repositories to get the count
-      const reposRes = await fetch(`http://localhost:8000/repositories/all?token=${token}`);
+      // Load repositories to get the count with credentials
+      const reposUrl = token
+        ? `http://localhost:8000/repositories/all?token=${token}`
+        : `http://localhost:8000/repositories/all`;
+
+      const reposRes = await fetch(reposUrl, {
+        credentials: "include"
+      });
       if (reposRes.ok) {
         const reposData = await reposRes.json();
         if (Array.isArray(reposData)) {
@@ -74,13 +85,11 @@ export default function DashboardLayout({
   const handleForceResync = async () => {
     setIsRefreshing(true);
     try {
-      const token = sessionStorage.getItem("dualloop_session_token");
-      if (token) {
-        await fetchUserRepositories(token);
-        // Dispatch custom event to notify child components that resync occurred
-        window.dispatchEvent(new Event("dualloop_resync"));
-        await loadSidebarData();
-      }
+      const token = sessionStorage.getItem("dualloop_session_token") || undefined;
+      await fetchUserRepositories(token);
+      // Dispatch custom event to notify child components that resync occurred
+      window.dispatchEvent(new Event("dualloop_resync"));
+      await loadSidebarData();
     } catch (err) {
       console.error("Force resync failed:", err);
     } finally {
@@ -88,7 +97,15 @@ export default function DashboardLayout({
     }
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    try {
+      await fetch("http://localhost:8000/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (err) {
+      console.error("Logout request failed:", err);
+    }
     sessionStorage.removeItem("dualloop_session_token");
     window.location.href = "/";
   };

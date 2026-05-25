@@ -15,17 +15,16 @@ export default function RepositoryCommitsTimeline() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    const token = sessionStorage.getItem("dualloop_session_token");
-    if (!token) {
-      router.push("/");
-      return;
-    }
+    const token = sessionStorage.getItem("dualloop_session_token") || null;
 
     const loadCommits = async () => {
       try {
         const response = await fetchRepositoryCommits(token, parseInt(repoId));
         if (response.detail) {
           setError(response.detail);
+          if (response.detail.toLowerCase().includes("missing") || response.detail.toLowerCase().includes("expired") || response.detail.toLowerCase().includes("invalid")) {
+            router.push("/");
+          }
         } else {
           setData(response);
         }

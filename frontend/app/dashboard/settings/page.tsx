@@ -31,13 +31,15 @@ function SettingsContent() {
   const loadSettings = async () => {
     try {
       const token = sessionStorage.getItem("dualloop_session_token") || searchParams.get("token") || "";
-      if (!token) {
-        setLoading(false);
-        return;
+
+      // Try cookie-based fetch first
+      let profileData = await fetchUserProfile();
+      
+      // Fallback to legacy token parameter
+      if ((!profileData || profileData.detail) && token) {
+        profileData = await fetchUserProfile(token);
       }
 
-      // Fetch user profile info
-      const profileData = await fetchUserProfile(token);
       if (profileData && !profileData.detail) {
         setUsername(profileData.username || "");
         setAvatarUrl(profileData.avatar_url || "");
@@ -58,11 +60,16 @@ function SettingsContent() {
     setUpdatingRole(true);
     try {
       const token = sessionStorage.getItem("dualloop_session_token") || "";
-      const res = await fetch(`http://localhost:8000/user/role?token=${token}`, {
+      const url = token
+        ? `http://localhost:8000/user/role?token=${token}`
+        : `http://localhost:8000/user/role`;
+
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({ target_role: newRole })
       });
 

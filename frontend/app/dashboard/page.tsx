@@ -38,21 +38,29 @@ function DashboardContent() {
   const loadDashboardData = async () => {
     try {
       const token = sessionStorage.getItem("dualloop_session_token") || searchParams.get("token") || "";
-      if (!token) {
-        setLoading(false);
-        return;
+
+      // Try cookie-based fetch first
+      let profileData = await fetchUserProfile();
+      
+      // Fallback to legacy token parameter
+      if ((!profileData || profileData.detail) && token) {
+        profileData = await fetchUserProfile(token);
       }
 
-      // Fetch user profile info
-      const profileData = await fetchUserProfile(token);
       if (profileData && !profileData.detail) {
         setUsername(profileData.username || "");
         setAvatarUrl(profileData.avatar_url || "");
         setTargetRole(profileData.target_role || "Fullstack Developer");
       }
 
-      // Load repository list
-      const reposRes = await fetch(`http://localhost:8000/repositories/all?token=${token}`);
+      // Load repository list with credentials
+      const reposUrl = token
+        ? `http://localhost:8000/repositories/all?token=${token}`
+        : `http://localhost:8000/repositories/all`;
+
+      const reposRes = await fetch(reposUrl, {
+        credentials: "include"
+      });
       if (reposRes.ok) {
         const reposData = await reposRes.json();
         if (Array.isArray(reposData)) {

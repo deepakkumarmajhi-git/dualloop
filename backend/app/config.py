@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     DATABASE_URL: str = "sqlite:///./dualloop.db"
     JWT_SECRET_KEY: str
+    ENCRYPTION_KEY: Optional[str] = None
 
 settings = Settings()
 
@@ -22,3 +23,4 @@ GITHUB_CLIENT_ID = settings.GITHUB_CLIENT_ID
 GITHUB_CLIENT_SECRET = settings.GITHUB_CLIENT_SECRET
 FRONTEND_URL = settings.FRONTEND_URL
 GEMINI_API_KEY = settings.GEMINI_API_KEY
+ENCRYPTION_KEY = settings.ENCRYPTION_KEY

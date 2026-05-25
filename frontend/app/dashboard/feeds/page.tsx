@@ -105,13 +105,15 @@ function FeedsContent() {
   const loadFeeds = async () => {
     try {
       const token = sessionStorage.getItem("dualloop_session_token") || searchParams.get("token") || "";
-      if (!token) {
-        setLoading(false);
-        return;
-      }
 
-      // Load repository list
-      const reposRes = await fetch(`http://localhost:8000/repositories/all?token=${token}`);
+      // Load repository list with credentials
+      const reposUrl = token
+        ? `http://localhost:8000/repositories/all?token=${token}`
+        : `http://localhost:8000/repositories/all`;
+
+      const reposRes = await fetch(reposUrl, {
+        credentials: "include"
+      });
       if (reposRes.ok) {
         const reposData = await reposRes.json();
         setRepositories(Array.isArray(reposData) ? reposData : []);
@@ -139,8 +141,13 @@ function FeedsContent() {
     setDeletingId(repoId);
     try {
       const token = sessionStorage.getItem("dualloop_session_token") || "";
-      const res = await fetch(`http://localhost:8000/repositories/${repoId}?token=${token}`, {
-        method: "DELETE"
+      const url = token
+        ? `http://localhost:8000/repositories/${repoId}?token=${token}`
+        : `http://localhost:8000/repositories/${repoId}`;
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        credentials: "include"
       });
 
       if (res.ok) {

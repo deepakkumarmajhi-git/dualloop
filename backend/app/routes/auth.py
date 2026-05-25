@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from app.services.github import get_access_token, get_github_user
-from app.config import GITHUB_CLIENT_ID, FRONTEND_URL
+from app.config import GITHUB_CLIENT_ID, FRONTEND_URL, settings
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.utils.jwt import create_access_token
 from app.utils.rate_limit import limiter
+from fastapi.responses import JSONResponse
 
 
 router = APIRouter(prefix="/auth")
@@ -63,6 +64,28 @@ async def github_callback(request: Request, code: str, db: Session = Depends(get
         "username": user.username
     })
 
-    return RedirectResponse(
-        f"{FRONTEND_URL}/dashboard?token={jwt_token}"
+    # Set secure HttpOnly cookie in RedirectResponse
+    response = RedirectResponse(f"{FRONTEND_URL}/dashboard")
+    response.set_cookie(
+        key="dualloop_session_token",
+        value=jwt_token,
+        httponly=True,
+        secure=settings.FRONTEND_URL.startswith("https"),
+        samesite="lax", # Lax allows the cookie to be sent on standard cross-site navigation/redirect
+        max_age=7 * 24 * 3600, # 7 days
     )
+    return response
+
+
+@router.post("/logout")
+def logout():
+    """
+    Clears the local session HttpOnly cookie securely.
+    """
+    response = JSONResponse({"status": "success", "message": "Logged out successfully"})
+    response.delete_cookie(
+        key="dualloop_session_token",
+        secure=settings.FRONTEND_URL.startswith("https"),
+        samesite="lax"
+    )
+    return response

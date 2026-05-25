@@ -14,13 +14,10 @@ def get_current_user(
     token_query: Optional[str] = Query(None, alias="token"),
     db: Session = Depends(get_db)
 ) -> User:
-    """
-    FastAPI dependency that extracts and validates the JWT token.
-    Supports standard Authorization Bearer header, with a secure query parameter fallback
-    for backwards-compatibility with the existing frontend requests.
-    """
     token = None
-    if credentials:
+    if request.cookies.get("dualloop_session_token"):
+        token = request.cookies.get("dualloop_session_token")
+    elif credentials:
         token = credentials.credentials
     elif token_query:
         token = token_query
@@ -28,7 +25,7 @@ def get_current_user(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="JWT access token is missing from headers or query parameters",
+            detail="JWT access token is missing from cookies, headers, or query parameters",
         )
     
     payload = decode_access_token(token)

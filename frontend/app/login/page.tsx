@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { fetchUserProfile } from "@/lib/api";
 import { motion } from "framer-motion";
 import { Infinity as InfinityIcon, Lock, Code2, GitBranch, ArrowRight, LogOut, ShieldCheck } from "lucide-react";
 
@@ -12,10 +13,18 @@ export default function LoginPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const token = sessionStorage.getItem("dualloop_session_token");
-    if (token) {
-      setIsLoggedIn(true);
-    }
+    const checkActiveSession = async () => {
+      try {
+        const token = sessionStorage.getItem("dualloop_session_token") || "";
+        const profile = await fetchUserProfile(token || undefined);
+        if (profile && !profile.detail) {
+          setIsLoggedIn(true);
+        }
+      } catch (err) {
+        console.error("Session verification check failed:", err);
+      }
+    };
+    checkActiveSession();
   }, []);
 
   const handleLogin = () => {
@@ -23,7 +32,15 @@ export default function LoginPage() {
     window.location.href = "http://localhost:8000/auth/github/login";
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    try {
+      await fetch("http://localhost:8000/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (err) {
+      console.error("Logout request failed:", err);
+    }
     sessionStorage.removeItem("dualloop_session_token");
     setIsLoggedIn(false);
   };
