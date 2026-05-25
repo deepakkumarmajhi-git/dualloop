@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Infinity, ShieldCheck, ArrowRight, LogOut, Terminal, Lock, GitBranch } from "lucide-react";
+import { Infinity as InfinityIcon, Lock, Code2, GitBranch, ArrowRight, LogOut, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,206 +29,174 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#030305] text-[#f8fafc] flex items-center justify-center overflow-hidden font-sans">
+    <div className="relative min-h-screen bg-[#030307] text-[#f8fafc] flex items-center justify-center overflow-hidden font-sans">
+      
+      {/* Background cyber grid and subtle space atmosphere */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.03)_0%,transparent_70%)] pointer-events-none z-0"></div>
+      
+      {/* Dynamic ambient color glows */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-purple-900/10 blur-[130px] pointer-events-none z-0"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full bg-cyan-900/10 blur-[130px] pointer-events-none z-0"></div>
+      
+      {/* Top Brand Logo - Absolute position */}
+      <div className="absolute top-8 left-8 z-50">
+        <Link href="/" className="flex items-center gap-2 select-none group">
+          <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_12px_rgba(6,182,212,0.3)] group-hover:scale-105 transition-transform duration-200">
+            <InfinityIcon className="w-4.5 h-4.5 text-white" />
+          </div>
+          <span className="text-sm font-extrabold tracking-wide text-white">DualLoop</span>
+        </Link>
+      </div>
 
-      {/* Background cyber grid */}
-      <div className="absolute inset-0 cyber-grid opacity-15 pointer-events-none z-0"></div>
+      {/* Main Grid Wrapper */}
+      <div className="relative z-10 max-w-6xl w-full px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        {/* Left Column: Glowing Visual GitHub Orb & Orbitals */}
+        <div className="lg:col-span-6 flex flex-col items-center justify-center relative select-none w-full min-h-[500px] py-10 lg:py-0">
+          
+          {/* Concentric orbital rings with dashed and solid stylings */}
+          <div className="absolute w-[360px] h-[360px] rounded-full border border-white/[0.04] border-dashed pointer-events-none"></div>
+          <div className="absolute w-[440px] h-[440px] rounded-full border border-white/[0.02] border-dashed pointer-events-none"></div>
+          <div className="absolute w-[280px] h-[280px] rounded-full border border-white/[0.05] pointer-events-none"></div>
 
-      {/* Ambient glow blobs — float in */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 0.25, scale: 1 }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
-        className="absolute top-1/4 -left-20 w-[600px] h-[600px] bg-glow-radial-blue z-0 pointer-events-none"
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 0.25, scale: 1 }}
-        transition={{ duration: 1.2, delay: 0.2, ease: "easeOut" }}
-        className="absolute bottom-1/4 -right-20 w-[600px] h-[600px] bg-glow-radial-purple z-0 pointer-events-none"
-      />
+          {/* Slow Revolving Orbit Wrapper (Orbit 1) */}
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+            className="absolute w-[360px] h-[360px] pointer-events-none flex items-center justify-center"
+          >
+            {/* Tech Icon: Code Brackets </ > */}
+            <div className="absolute top-8 left-12 w-8 h-8 rounded-lg bg-[#07070c]/90 border border-white/5 flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.5)] backdrop-blur-sm pointer-events-auto">
+              <Code2 className="w-4.5 h-4.5 text-gray-500 hover:text-cyan-400 transition-colors" />
+            </div>
 
-      {/* Half-visible GitHub Octocat silhouette (behind the card) */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.04 }}
-        transition={{ duration: 1.5, delay: 0.3 }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 pointer-events-none select-none"
-      >
-        <svg className="w-[600px] h-[600px]" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-      </motion.div>
+            {/* Glowing node node point */}
+            <div className="absolute bottom-6 right-16 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]"></div>
+          </motion.div>
 
-      {/* Floating backend code lines — left side */}
-      <motion.div
-        initial={{ opacity: 0, x: -30 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-        className="absolute left-6 top-1/4 space-y-3 font-mono text-[9px] text-white/[0.06] select-none pointer-events-none z-0 hidden md:block"
-      >
-        <div>from fastapi import FastAPI, Depends</div>
-        <div>from sqlalchemy.orm import Session</div>
-        <div>from app.auth import verify_token</div>
-        <div className="pl-4">app = FastAPI(title=&quot;DualLoop&quot;)</div>
-        <div></div>
-        <div>@app.get(&quot;/api/v1/repos&quot;)</div>
-        <div>async def get_repos(</div>
-        <div className="pl-4">token: str = Depends(verify_token),</div>
-        <div className="pl-4">db: Session = Depends(get_db)</div>
-        <div>):</div>
-        <div className="pl-4">return db.query(Repository).all()</div>
-      </motion.div>
+          {/* Slow Revolving Orbit Wrapper (Orbit 2) */}
+          <motion.div 
+            animate={{ rotate: -360 }}
+            transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
+            className="absolute w-[440px] h-[440px] pointer-events-none flex items-center justify-center"
+          >
+            {/* Tech Icon: Braces { } */}
+            <div className="absolute top-1/2 -right-4 -translate-y-1/2 w-8 h-8 rounded-lg bg-[#07070c]/90 border border-white/5 flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.5)] backdrop-blur-sm pointer-events-auto font-mono text-xs font-bold text-gray-500 hover:text-purple-400 transition-colors select-none">
+              {"{}"}
+            </div>
 
-      {/* Floating backend code lines — right side */}
-      <motion.div
-        initial={{ opacity: 0, x: 30 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
-        className="absolute right-6 bottom-1/4 space-y-3 font-mono text-[9px] text-white/[0.06] select-none pointer-events-none z-0 hidden md:block text-right"
-      >
-        <div>class Repository(Base):</div>
-        <div className="pr-4">__tablename__ = &quot;repositories&quot;</div>
-        <div className="pr-4">id = Column(Integer, primary_key=True)</div>
-        <div className="pr-4">name = Column(String, nullable=False)</div>
-        <div className="pr-4">language = Column(String)</div>
-        <div className="pr-4">stars = Column(Integer, default=0)</div>
-        <div></div>
-        <div>async def sync_commits(repo_id: int):</div>
-        <div className="pr-4">commits = await github.fetch_commits()</div>
-        <div className="pr-4">db.bulk_insert(commits)</div>
-      </motion.div>
+            {/* Tech Icon: Git branch/merge */}
+            <div className="absolute bottom-8 left-16 w-8 h-8 rounded-lg bg-[#07070c]/90 border border-white/5 flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.5)] backdrop-blur-sm pointer-events-auto">
+              <GitBranch className="w-4.5 h-4.5 text-gray-500 hover:text-emerald-400 transition-colors" />
+            </div>
 
-      {/* Main Glass Card — scale + fade in */}
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-[440px] mx-4"
-      >
+            {/* Glowing purple node point */}
+            <div className="absolute top-12 right-20 w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>
+          </motion.div>
 
-        {/* Outer gradient border glow */}
-        <div className="absolute -inset-[1px] bg-gradient-to-br from-cyan-500/30 via-purple-500/20 to-transparent rounded-3xl blur-sm pointer-events-none"></div>
-        <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-3xl opacity-60 blur-2xl pointer-events-none"></div>
+          {/* Stat 1: Top Right */}
+          <div className="absolute top-0 right-2 lg:-right-4 text-left p-3.5 bg-[#030307]/50 rounded-xl backdrop-blur-[2px] border border-white/[0.02]">
+            <div className="text-xl lg:text-2xl font-black text-white/95 leading-none">98%</div>
+            <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mt-1">Developers</div>
+            <div className="text-[9px] font-medium text-gray-600">on GitHub</div>
+          </div>
 
-        <div className="relative rounded-3xl bg-[#0a0a0f]/80 backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_64px_rgba(0,0,0,0.6)] overflow-hidden">
+          {/* Stat 2: Bottom Left */}
+          <div className="absolute bottom-0 left-2 lg:-left-4 text-left p-3.5 bg-[#030307]/50 rounded-xl backdrop-blur-[2px] border border-white/[0.02]">
+            <div className="text-xl lg:text-2xl font-black text-white/95 leading-none">50M+</div>
+            <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mt-1">Repositories</div>
+            <div className="text-[9px] font-medium text-gray-600">Analyzed</div>
+          </div>
 
-          {/* Top accent gradient line */}
-          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_rgba(6,182,212,0.8)]"></div>
+          {/* Stat 3: Bottom Right */}
+          <div className="absolute bottom-0 right-2 lg:-right-4 text-left p-3.5 bg-[#030307]/50 rounded-xl backdrop-blur-[2px] border border-white/[0.02]">
+            <div className="text-xl lg:text-2xl font-black text-white/95 leading-none">100K+</div>
+            <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mt-1">Projects</div>
+            <div className="text-[9px] font-medium text-gray-600">Aligned</div>
+          </div>
 
-          {/* Inner content */}
-          <div className="p-8 md:p-10 flex flex-col items-center gap-7">
+          {/* Pedestal Platform (Bottom Glowing Disk Elements) */}
+          <div className="absolute bottom-[58px] w-[260px] h-[30px] rounded-full bg-gradient-to-r from-purple-500/20 via-cyan-500/30 to-purple-500/20 blur-[15px] opacity-70 pointer-events-none"></div>
+          <div className="absolute bottom-[62px] w-[210px] h-[20px] rounded-full bg-[#030307] border border-cyan-500/35 shadow-[0_0_25px_rgba(6,182,212,0.4)] pointer-events-none"></div>
+          <div className="absolute bottom-[66px] w-[170px] h-[10px] rounded-full bg-gradient-to-r from-cyan-400/40 via-purple-600/40 to-cyan-400/40 border-t border-white/10 shadow-[inset_0_1px_4px_rgba(255,255,255,0.3)] pointer-events-none"></div>
 
-            {/* Back link */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.4 }}
-              className="self-start"
+          {/* Glowing central GitHub Sphere */}
+          <motion.div 
+            className="absolute bottom-[72px] w-[220px] h-[220px] rounded-full border border-cyan-500/20 bg-gradient-to-b from-cyan-500/10 via-transparent to-purple-500/20 flex items-center justify-center shadow-[0_0_40px_rgba(6,182,212,0.25),inset_0_0_30px_rgba(6,182,212,0.15)] backdrop-blur-md transition-all duration-500 hover:border-cyan-400/40 hover:shadow-[0_0_50px_rgba(6,182,212,0.35)] animate-float"
+          >
+            <div className="absolute inset-0 rounded-full border border-cyan-500/10 scale-95 pointer-events-none animate-pulse-ring-cyan"></div>
+            
+            {/* White Silhouette Octocat GitHub SVG */}
+            <svg 
+              className="w-24 h-24 text-white fill-current filter drop-shadow-[0_0_14px_rgba(6,182,212,0.55)]" 
+              viewBox="0 0 16 16" 
+              fill="currentColor" 
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <Link
-                href="/"
-                className="text-[11px] font-mono text-gray-500 hover:text-cyan-400 transition-colors flex items-center gap-1.5"
-              >
-                <span>&larr;</span> Back to Station
-              </Link>
-            </motion.div>
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+          </motion.div>
 
-            {/* Header: Logo + GitHub silhouette ring */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-              className="text-center space-y-4"
-            >
-              <div className="relative mx-auto w-16 h-16">
-                {/* Outer animated ring */}
-                <div className="absolute inset-0 rounded-2xl border border-cyan-500/20 animate-pulse"></div>
-                {/* Glass icon container */}
-                <div className="absolute inset-1 rounded-xl bg-gradient-to-br from-[#1b1b22] to-[#0e0e12] border border-white/10 flex items-center justify-center shadow-inner">
-                  <svg
-                    className="w-7 h-7 text-white fill-current filter drop-shadow-[0_0_12px_rgba(255,255,255,0.5)]"
-                    viewBox="0 0 16 16"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-                  </svg>
-                </div>
-                {/* Corner accent dots */}
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.3, delay: 0.7, type: "spring" }}
-                  className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(6,182,212,0.8)]"
-                />
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.3, delay: 0.8, type: "spring" }}
-                  className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-purple-400 rounded-full shadow-[0_0_6px_rgba(168,85,247,0.6)]"
-                />
-              </div>
+        </div>
 
-              <div>
-                <h3 className="text-xl font-bold tracking-tight text-white">
-                  {isLoggedIn ? "Session Active" : "Authenticate Console"}
-                </h3>
-                <p className="text-[11px] text-gray-500 mt-1.5 max-w-[280px] mx-auto leading-relaxed">
-                  {isLoggedIn
-                    ? "Your secure workspace session is currently live and streaming telemetry."
-                    : "Connect your GitHub workspace via OAuth to initialize telemetry mapping and diagnostics."
-                  }
-                </p>
-              </div>
-            </motion.div>
+        {/* Right Column: Premium Credentials Login Card */}
+        <div className="lg:col-span-6 flex items-center justify-center w-full">
+          <motion.div 
+            initial={{ opacity: 0, y: 25, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-full max-w-[460px] rounded-[32px] p-10 bg-[#07070e]/80 backdrop-blur-2xl border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.65)] flex flex-col items-center text-center gap-6 overflow-hidden"
+          >
+            {/* Absolute overlay for glowing gradient card border */}
+            <div className="absolute -inset-[1px] bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-500/30 rounded-[32px] pointer-events-none z-0"></div>
+            
+            {/* Top Logo Container */}
+            <div className="relative z-10 w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-[#12121f] to-[#07070c] border border-white/5 shadow-inner">
+              <InfinityIcon className="w-7 h-7 text-cyan-400 filter drop-shadow-[0_0_8px_rgba(6,182,212,0.45)]" />
+            </div>
 
-            {/* Feature badges row */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.5 }}
-              className="flex items-center justify-center gap-4 select-none"
-            >
-              <div className="flex items-center gap-1.5 text-[8px] font-mono text-gray-500 uppercase tracking-wider">
-                <Terminal className="w-3 h-3 text-cyan-400/60" />
-                <span>FastAPI Backend</span>
-              </div>
-              <div className="w-0.5 h-3 bg-white/5"></div>
-              <div className="flex items-center gap-1.5 text-[8px] font-mono text-gray-500 uppercase tracking-wider">
-                <Lock className="w-3 h-3 text-purple-400/60" />
-                <span>AES-256 Encrypted</span>
-              </div>
-              <div className="w-0.5 h-3 bg-white/5"></div>
-              <div className="flex items-center gap-1.5 text-[8px] font-mono text-gray-500 uppercase tracking-wider">
-                <GitBranch className="w-3 h-3 text-emerald-400/60" />
-                <span>Git Sync</span>
-              </div>
-            </motion.div>
+            {/* Form Headers */}
+            <div className="relative z-10 space-y-1.5 mt-2">
+              <h2 className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-white leading-tight">
+                {isLoggedIn ? "Session Active" : "Welcome to "}
+                {!isLoggedIn && (
+                  <span className="bg-gradient-to-r from-purple-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+                    DualLoop
+                  </span>
+                )}
+              </h2>
+              <p className="text-xs font-semibold text-gray-500 tracking-wide select-none">
+                Your AI companion for developer progress
+              </p>
+            </div>
 
-            {/* Divider */}
-            <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/[0.06] to-transparent"></div>
+            {/* Subtle Divider Line */}
+            <div className="relative z-10 w-24 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent my-1" />
 
-            {/* Action Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.55, ease: "easeOut" }}
-              className="w-full flex flex-col gap-3"
-            >
+            {/* Description Text */}
+            <p className="relative z-10 text-xs text-gray-400/90 leading-relaxed font-normal px-4 max-w-[340px]">
+              {isLoggedIn 
+                ? "Your secure telemetry session is currently live and synchronized with your GitHub workspace."
+                : "Sign in with GitHub to connect your repositories, analyze your workflow, and stay aligned with your goals."
+              }
+            </p>
+
+            {/* Action Buttons Box */}
+            <div className="relative z-10 w-full flex flex-col gap-3 mt-2">
               {isLoggedIn ? (
                 <>
                   <button
                     onClick={() => router.push("/dashboard")}
-                    className="w-full py-3.5 bg-gradient-to-r from-white to-gray-100 text-black font-semibold rounded-xl text-xs font-mono uppercase tracking-wider transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+                    className="w-full py-3.5 bg-gradient-to-r from-white to-gray-100 hover:from-gray-50 hover:to-gray-200 text-black font-bold rounded-xl text-xs tracking-wider transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
                   >
                     <span>Return to Active Console</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5 text-black" />
                   </button>
                   <button
                     onClick={handleSignOut}
-                    className="w-full py-3.5 bg-[#111115] border border-red-500/20 text-red-400 font-semibold rounded-xl text-xs font-mono uppercase tracking-wider transition-all duration-300 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.1)] flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+                    className="w-full py-3.5 bg-[#111117] border border-red-500/20 text-red-400 font-bold rounded-xl text-xs tracking-wider transition-all duration-300 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.1)] flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
+                    <LogOut className="w-3.5 h-3.5 text-red-400" />
                     <span>Terminate Session</span>
                   </button>
                 </>
@@ -236,19 +204,23 @@ export default function LoginPage() {
                 <button
                   onClick={handleLogin}
                   disabled={isLoading}
-                  className="group w-full py-3.5 bg-gradient-to-r from-white to-gray-100 text-black font-semibold rounded-xl text-xs font-mono uppercase tracking-wider transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer relative overflow-hidden"
+                  className="group relative w-full py-3.5 bg-gradient-to-r from-[#0d0d16]/95 to-[#08080f]/95 hover:from-[#11111d]/90 hover:to-[#0b0b14]/90 border border-purple-500/30 hover:border-cyan-400/45 rounded-xl text-xs font-bold text-white tracking-wide transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_0_15px_rgba(168,85,247,0.12)] flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer overflow-hidden"
                 >
-                  {/* Shimmer effect on hover */}
-                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none"></div>
+                  {/* Internal Shimmer effect on hover */}
+                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/[0.05] to-transparent pointer-events-none"></div>
 
                   {isLoading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
-                      <span>Initializing OAuth Redirect...</span>
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      <span>Connecting OAuth...</span>
                     </>
                   ) : (
                     <>
-                      <svg className="w-4.5 h-4.5 fill-current relative z-10" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                      <svg 
+                        className="w-5 h-5 text-white fill-current relative z-10" 
+                        viewBox="0 0 16 16" 
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
                         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                       </svg>
                       <span className="relative z-10">Continue with GitHub</span>
@@ -256,54 +228,20 @@ export default function LoginPage() {
                   )}
                 </button>
               )}
-            </motion.div>
+            </div>
 
-            {/* Legal / Trust footer */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.7 }}
-              className="text-[9px] text-gray-600 text-center leading-relaxed max-w-[300px]"
-            >
-              By connecting, you authorize DualLoop to map your repositories and read telemetry commits. No code files are modified or stored.
-            </motion.div>
+            {/* Secure Signature Footnote */}
+            <div className="relative z-10 flex items-center justify-center gap-1.5 text-[10px] text-gray-500 font-semibold tracking-wide mt-2">
+              <Lock className="w-3.5 h-3.5 text-gray-500" />
+              <span>Secure. Private. Developer-first.</span>
+            </div>
 
-            {/* Bottom protocol bar */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.8 }}
-              className="w-full flex items-center justify-between text-[8px] font-mono text-gray-600 border-t border-white/5 pt-4"
-            >
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3 h-3 text-emerald-500/50" />
-                <span>OAUTH 2.0 PROTOCOL</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.6)] animate-pulse"></div>
-                <span>SECURE SESSION</span>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Bottom gradient fade accent */}
-          <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-purple-500/[0.03] to-transparent pointer-events-none"></div>
-
+            {/* Bottom gradient visual accent */}
+            <div className="absolute bottom-0 inset-x-0 h-28 bg-gradient-to-t from-purple-500/[0.02] to-transparent pointer-events-none z-0"></div>
+          </motion.div>
         </div>
-      </motion.div>
 
-      {/* Floating DualLoop brand mark (bottom) */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 1 }}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 select-none z-10"
-      >
-        <div className="w-5 h-5 flex items-center justify-center rounded-md bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_6px_rgba(6,182,212,0.2)]">
-          <Infinity className="w-3 h-3 text-white" />
-        </div>
-        <span className="text-[9px] font-mono text-gray-600 tracking-widest uppercase">DualLoop Telemetry Station</span>
-      </motion.div>
+      </div>
 
     </div>
   );

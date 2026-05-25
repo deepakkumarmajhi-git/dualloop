@@ -7,7 +7,9 @@ DualLoop is a fullstack web application designed for developer workspaces. It co
 
 ## 🏗️ Architecture & Security Model
 
-DualLoop uses an isolated multi-tenant architecture to guarantee that all synced data, statistics, and repository metrics are visible **only to the authenticated owner**.
+DualLoop is designed with an isolated, multi-tenant security architecture that guarantees developer data privacy. All repository telemetry, organization attributes, and commit timelines are strictly partitioned and accessible **only to the authenticated owner**.
+
+### Dynamic System Flow
 
 ```mermaid
 sequenceDiagram
@@ -15,27 +17,65 @@ sequenceDiagram
     actor Dev as Developer
     participant FE as Next.js Frontend
     participant BE as FastAPI Backend
-    participant DB as SQLite / Postgres DB
+    participant DB as SQLite / PostgreSQL
     participant GH as GitHub API
 
     Dev->>FE: Click "Continue with GitHub"
     FE->>BE: GET /auth/github/login
-    BE->>GH: Redirect to GitHub OAuth Sign-In
+    Note over BE: Rate Limited (30/min via SlowAPI)
+    BE->>GH: Redirect to GitHub OAuth Form
     GH->>BE: GET /auth/github/callback?code=XYZ
-    BE->>GH: Exchange code for GitHub Access Token
-    BE->>DB: Save User & store GitHub Access Token securely
-    BE->>FE: Redirect with local JWT token
-    FE->>BE: GET /repositories/sync?token=JWT
-    Note over BE,DB: JWT decoded safely to find user_id
-    BE->>DB: Lookup GitHub Access Token for user
-    BE->>GH: Fetch User Repositories & Commits
-    BE->>DB: Store metadata & link foreign keys (owner_id)
-    BE->>FE: Return JSON list of user's synced repositories
-    FE->>BE: GET /analytics/languages?token=JWT
-    BE->>DB: Query user's repositories exclusively
-    BE->>FE: Return private language distribution metrics
-    FE->>Dev: Render custom, isolated Glassmorphic Dashboard
+    Note over BE: Rate Limited (30/min via SlowAPI)
+    BE->>GH: Exchange authorization code for GitHub Access Token
+    BE->>DB: Persist user & encrypt/store GitHub Access Token
+    BE->>FE: Redirect back with local JWT token (?token=JWT)
+    
+    Note over FE: Client extracts JWT, writes to sessionStorage,<br/>and runs history.replaceState() to scrub URL bar
+    
+    FE->>BE: GET /repositories/sync (Authorization: Bearer JWT)
+    Note over BE: JWT validated (jose/HS256). Extracts user_id
+    BE->>FE: Return "syncing" (Instant Async Ack)
+    
+    Note over BE: Spawns Background Task to sync telemetry
+    BE->>DB: Lookup GitHub Access Token for user_id
+    BE->>GH: Query repos (Parallelised via asyncio.gather, max 70)
+    BE->>GH: Fetch repo languages & pull request status
+    BE->>GH: Sync commits (Checks commits_etag to fetch diffs only)
+    BE->>DB: Cascading CRUD: Remove stale/archived repos & commits
+    BE->>DB: Store synced records linked by strict foreign keys (owner_id)
+    
+    FE->>BE: GET /repositories/all (Bearer JWT)
+    BE->>DB: Query repositories WHERE owner_id == current_user.id
+    BE->>FE: Return isolated repository dashboard records
+    FE->>Dev: Render Glassmorphic Telemetry Workspace
 ```
+
+### Architecture Core Pillars
+
+#### 1. OAuth 2.0 & Session Security
+* **Double-Token Isolation**: DualLoop keeps the third-party token isolated. The frontend never sees or stores the raw GitHub access token. Instead, the backend exchanges the OAuth code, securely stores the GitHub Access Token in the database, and mints a short-lived **local JWT session token** signed with `HS256` and backed by a 7-day expiration duration.
+* **Header and Fallback Extraction**: The FastAPI security module (`get_current_user`) extracts tokens primarily from standard `Authorization: Bearer <token>` request headers, with a secure query string fallback (`?token=...`) for compatibility.
+* **Client-Side Sanitization**: Upon returning from the OAuth flow, the Next.js router immediately grabs the JWT from the URL search parameters, caches it in tab-isolated `sessionStorage` (preventing persistent leakage on shared machines), and immediately runs `window.history.replaceState` to strip the secret token from the browser address bar.
+
+#### 2. Strict Multi-Tenant Isolation
+* All backend routes query the DB exclusively with filter scopes tied to the active user's verification footprint:
+  ```python
+  repositories = db.query(Repository).filter(Repository.owner_id == current_user.id).all()
+  ```
+* Spoofing attempts, ID-guessing, or cross-tenant query injections are completely blocked because database access is bound strictly to the decoded JWT identity signature at the ORM layer.
+
+#### 3. Optimized Asynchronous Ingestion & ETag Caching
+* **Background Worker Processing**: Initiating a workspace refresh (`/repositories/sync`) triggers a non-blocking asynchronous FastAPI `BackgroundTask`, allowing the UI to remain incredibly responsive while heavy syncs run in the background.
+* **GitHub Rate Limit Defenses**:
+  * Parallelizes fetches using `asyncio.gather` for up to **70 active repositories** to keep sync times low without overwhelming GitHub APIs.
+  * Deep commit detail analysis (additions, deletions, and extensions) is capped at the first **10 commits** to avoid triggering secondary abuse rate limits.
+  * Employs **HTTP ETag caching** via `commits_etag` on the `repositories` table. If the repository hasn't changed on GitHub, it skips refetching the commit timeline.
+* **Cascading Synchronisation (CRUD Sync)**: When repositories are deleted or archived on GitHub, the backend automatically performs a database sync to purge the stale records and cascades deletion to all associated commits.
+
+#### 4. API Infrastructure Protection
+* **Rate-Limiting (DDoS Protection)**: Integrated `SlowAPI` with key auth-routes scoped to `30 requests per minute` per client IP to safeguard against brute-force account registration.
+* **CORS Binding**: The server runs a locked CORS policy via `CORSMiddleware`, restricting traffic explicitly to the configured client-facing `FRONTEND_URL` and blocking untrusted cross-origin requests.
+* **Dynamic Hot-Migrations**: DualLoop automatically applies non-breaking schema upgrades (e.g. database fields like `target_role`, `commits_etag`, `languages_json`, PR counts) during server startup, maintaining a zero-downtime development workflow.
 
 ---
 
